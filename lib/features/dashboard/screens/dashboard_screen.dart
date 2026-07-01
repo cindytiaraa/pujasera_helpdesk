@@ -8,6 +8,7 @@ import '../../ticket/screens/create_ticket_screen.dart';
 import '../../ticket/screens/ticket_detail_screen.dart';
 import '../../notification/screens/notification_screen.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../auth/screens/login_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DashboardScreen — shell utama dengan BottomNavigationBar
@@ -154,6 +155,45 @@ class _DashboardHome extends StatelessWidget {
   final VoidCallback onRefresh;
   const _DashboardHome({required this.onNavigate, required this.onRefresh});
 
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Keluar Aplikasi',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text(
+            'Apakah Anda yakin ingin keluar dari akun ini?',
+            style: TextStyle(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              SessionService.logout();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme  = Theme.of(context);
@@ -164,32 +204,121 @@ class _DashboardHome extends StatelessWidget {
   return Scaffold(
     // Header FIXED di atas — tidak ikut scroll
     appBar: AppBar(
-      automaticallyImplyLeading: false,
+      iconTheme: const IconThemeData(color: Colors.white),
       backgroundColor: theme.colorScheme.primary,
       toolbarHeight: 70,
       title: Row(children: [
-        UserAvatar(initials: SessionService.userAvatar, size: 44, color: Colors.white),
-        const SizedBox(width: 12),
+        Image.asset(
+          'assets/images/logo.png',
+          height: 32,
+        ),
+        const SizedBox(width: 8),
+        UserAvatar(initials: SessionService.userAvatar, size: 36, color: Colors.white),
+        const SizedBox(width: 8),
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Selamat datang,',
-                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 13)),
+                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 11)),
             Text(SessionService.userName,
-                style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
           ],
         )),
+        const SizedBox(width: 4),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(SessionService.roleLabel.toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontSize: 10,
+              style: const TextStyle(color: Colors.white, fontSize: 9,
                   fontWeight: FontWeight.w700, letterSpacing: 0.5)),
         ),
       ]),
+    ),
+    drawer: Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [theme.colorScheme.primary, theme.colorScheme.primary.withBlue(200)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 60,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Smart Pujasera',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Helpdesk E-Ticketing',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.dashboard_rounded),
+            title: const Text('Dashboard'),
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(0);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.confirmation_number_rounded),
+            title: const Text('Laporan'),
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(1);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_rounded),
+            title: const Text('Notifikasi'),
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(2);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_rounded),
+            title: const Text('Profil'),
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(3);
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout_rounded, color: Colors.red),
+            title: const Text('Keluar', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context);
+              _showLogoutDialog(context);
+            },
+          ),
+        ],
+      ),
     ),
     // Konten scrollable biasa — bukan CustomScrollView + Sliver
     body: SingleChildScrollView(

@@ -359,7 +359,7 @@ class _DarkModeTile extends StatelessWidget {
           Switch(
             value: isDark,
             onChanged: (_) => appState?.toggleTheme(),
-            activeColor: theme.colorScheme.primary,
+            activeThumbColor: theme.colorScheme.primary,
           ),
         ],
       ),

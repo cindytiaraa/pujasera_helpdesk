@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:pujasera_helpdesk/features/auth/screens/splash_screen.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/screens/splash_screen.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://jdaqsnhgsrppchzlthyi.supabase.co',
+    anonKey: 'sb_publishable_ygXEs5EdoiBZyntD8DAdLg_zfuSNYdj',
+  );
+
   await initializeDateFormatting('id_ID', null);
 
-  // Lock portrait orientation
-  SystemChrome.setPreferredOrientations([
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Status bar style
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
 
   runApp(const SmartPujaseraApp());
 }
@@ -27,7 +34,6 @@ void main() async {
 class SmartPujaseraApp extends StatefulWidget {
   const SmartPujaseraApp({super.key});
 
-  // Allow child widgets to toggle theme
   static _SmartPujaseraAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<_SmartPujaseraAppState>();
 
@@ -41,7 +47,7 @@ class _SmartPujaseraAppState extends State<SmartPujaseraApp> {
   void toggleTheme() {
     setState(() {
       _themeMode =
-          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+      _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     });
   }
 
@@ -58,5 +64,4 @@ class _SmartPujaseraAppState extends State<SmartPujaseraApp> {
       home: const SplashScreen(),
     );
   }
-
 }

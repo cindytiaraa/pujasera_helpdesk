@@ -26,11 +26,12 @@ class AppConstants {
 
   // Ticket category
   static const List<String> ticketCategories = [
-    'Gangguan Jaringan',
-    'Perangkat Rusak',
-    'Masalah Software',
-    'Akses Sistem',
-    'Permintaan Data',
+    'Kebersihan',
+    'Fasilitas',
+    'Tenant/Kios',
+    'Pembayaran',
+    'Keamanan',
+    'Pelayanan',
     'Lainnya',
   ];
 }

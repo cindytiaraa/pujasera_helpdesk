@@ -81,7 +81,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: notifs.length,
-                separatorBuilder: (_, __) => Divider(height: 1, color: theme.dividerColor),
+                separatorBuilder: (_, _) => Divider(height: 1, color: theme.dividerColor),
                 itemBuilder: (ctx, i) {
                   final n      = notifs[i];
                   final isRead = n['isRead'] as bool;

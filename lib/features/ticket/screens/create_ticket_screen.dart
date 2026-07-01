@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/app_utils.dart';
-import '../../../shared/services/dummy_data_service.dart';
 import '../../../shared/services/session_service.dart';
-
+import '../../../shared/services/supabase_service.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // CreateTicketScreen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,13 +38,18 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     setState(() => _submitting = true);
     await Future.delayed(const Duration(milliseconds: 1000));
 
-    final newTicket = DummyDataService.createTicket({
-      'title':       _titleCtrl.text.trim(),
+    final newTicket = await SupabaseService.createTicket({
+      'id': 'T${DateTime.now().millisecondsSinceEpoch}',
+      'title': _titleCtrl.text.trim(),
       'description': _descCtrl.text.trim(),
-      'category':    _category,
-      'priority':    _priority,
-      'location':    _locationCtrl.text.trim(),
-      'attachments': _imageName != null ? [_imageName!] : <String>[],
+      'category': _category,
+      'priority': _priority,
+      'status': 'Pending',
+      'user_id': SessionService.userId,
+      'assigned_to_id': null,
+      'location': _locationCtrl.text.trim(),
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
     });
 
     if (!mounted) return;
@@ -162,7 +167,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
             const SizedBox(height: 14),
 
             DropdownButtonFormField<String>(
-              value: _category,
+              initialValue: _category,
               decoration: const InputDecoration(labelText: 'Kategori',
                   prefixIcon: Icon(Icons.category_outlined, size: 20)),
               items: AppConstants.ticketCategories

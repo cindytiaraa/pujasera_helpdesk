@@ -263,10 +263,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty)
+                  if (v == null || v.isEmpty) {
                     return 'Konfirmasi password wajib diisi';
-                  if (v != _passwordController.text)
+                  }
+                  if (v != _passwordController.text) {
                     return 'Password tidak cocok';
+                  }
                   return null;
                 },
               ),

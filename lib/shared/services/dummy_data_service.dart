@@ -2,7 +2,7 @@ import 'session_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DummyDataService
-// Satu-satunya sumber data dummy di seluruh aplikasi.
+// Sumber data dummy di seluruh aplikasi.
 // Semua filter berbasis role ada di sini — screen tinggal panggil method.
 // ─────────────────────────────────────────────────────────────────────────────
 

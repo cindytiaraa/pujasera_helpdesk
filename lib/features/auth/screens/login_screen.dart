@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/services/dummy_data_service.dart';
 import '../../../shared/services/session_service.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import 'register_screen.dart';
@@ -101,20 +100,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     // ── Logo ──────────────────────────────────────────────
                     Center(
                       child: Column(children: [
-                        Container(
-                          width: 80, height: 80,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [AppTheme.primaryColor, AppTheme.primaryColor.withBlue(200)],
-                              begin: Alignment.topLeft, end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(22),
-                            boxShadow: [BoxShadow(
-                              color: AppTheme.primaryColor.withOpacity(0.3),
-                              blurRadius: 20, offset: const Offset(0, 8),
-                            )],
-                          ),
-                          child: const Icon(Icons.support_agent_rounded, size: 42, color: Colors.white),
+                        Image.asset(
+                          'assets/images/logo.png',
+                          height: 80,
                         ),
                         const SizedBox(height: 16),
                         Text('Smart Pujasera',
