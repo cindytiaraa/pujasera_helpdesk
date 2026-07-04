@@ -1,4 +1,4 @@
-import 'session_service.dart';
+import '../../core/services/session_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DummyDataService

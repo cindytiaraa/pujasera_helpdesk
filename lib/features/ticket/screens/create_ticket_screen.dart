@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/app_utils.dart';
-import '../../../shared/services/session_service.dart';
-import '../../../shared/services/supabase_service.dart';
+import '../../../core/services/session_service.dart';
+import '../services/ticket_service.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CreateTicketScreen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,20 +37,15 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
-    await Future.delayed(const Duration(milliseconds: 1000));
 
-    final newTicket = await SupabaseService.createTicket({
-      'id': 'T${DateTime.now().millisecondsSinceEpoch}',
+    final newTicket = await TicketService.createTicket({
       'title': _titleCtrl.text.trim(),
       'description': _descCtrl.text.trim(),
       'category': _category,
       'priority': _priority,
-      'status': 'Pending',
       'user_id': SessionService.userId,
       'assigned_to_id': null,
       'location': _locationCtrl.text.trim(),
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
     });
 
     if (!mounted) return;
@@ -57,7 +53,9 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
 
     if (newTicket != null) {
       AppUtils.showSnackBar(context, 'Laporan ${newTicket['id']} berhasil dibuat!');
-      Navigator.pop(context);
+      if(newTicket!=null){
+        Navigator.pop(context);
+      }
     } else {
       AppUtils.showSnackBar(context, 'Gagal membuat laporan.', isError: true);
     }

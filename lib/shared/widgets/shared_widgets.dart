@@ -11,7 +11,8 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = AppTheme.getStatusColor(status);
+    final normalizedStatus = status.trim();
+    final color = AppTheme.getStatusColor(normalizedStatus);
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: small ? 8 : 12,
@@ -95,7 +96,9 @@ class TicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final createdAt = DateTime.parse(ticket['createdAt']);
+    final createdAt = ticket['created_at'] != null
+    ? DateTime.parse(ticket['created_at'])
+    : DateTime.now();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -174,23 +177,6 @@ class TicketCard extends StatelessWidget {
                       color: theme.colorScheme.onSurface.withOpacity(0.4),
                     ),
                   ),
-                  if (ticket['comments'] != null &&
-                      (ticket['comments'] as List).isNotEmpty) ...[
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 12,
-                      color: theme.colorScheme.onSurface.withOpacity(0.4),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${(ticket['comments'] as List).length}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: theme.colorScheme.onSurface.withOpacity(0.4),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ],

@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_utils.dart';
-import '../../../shared/services/dummy_data_service.dart';
-import '../../../shared/services/session_service.dart';
+import '../../../core/services/session_service.dart';
+import '../services/profile_service.dart';
+import '../../auth/models/user_model.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../../main.dart';
 import '../../auth/screens/login_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -52,7 +58,11 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final stats = DummyDataService.getDashboardStats();
+    const stats = {
+      'total': 0,
+      'pending': 0,
+      'done': 0,
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -146,19 +156,19 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       _StatBox(
                         label: 'Total',
-                        count: stats['total'],
+                        count: stats['total'] ?? 0,
                         color: theme.colorScheme.primary,
                       ),
-                      const SizedBox(width: 12),
+
                       _StatBox(
                         label: 'Pending',
-                        count: stats['pending'],
+                        count: stats['pending'] ?? 0,
                         color: AppTheme.pendingColor,
                       ),
-                      const SizedBox(width: 12),
+
                       _StatBox(
                         label: 'Selesai',
-                        count: stats['done'],
+                        count: stats['done'] ?? 0,
                         color: AppTheme.doneColor,
                       ),
                     ],
@@ -196,7 +206,7 @@ class ProfileScreen extends StatelessWidget {
                         _ProfileTile(
                           icon: Icons.business_outlined,
                           label: 'Departemen',
-                          value: '',
+                          value: SessionService.userDept,
                         ),
                         Divider(
                             height: 1,

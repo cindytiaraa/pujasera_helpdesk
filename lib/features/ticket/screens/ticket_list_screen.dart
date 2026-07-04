@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../shared/services/dummy_data_service.dart';
-import '../../../shared/services/session_service.dart';
+import '../services/ticket_service.dart';
+import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import 'ticket_detail_screen.dart';
 
@@ -20,12 +20,27 @@ class _TicketListScreenState extends State<TicketListScreen>
   final _searchCtrl = TextEditingController();
   String _query = '';
 
-  final _tabs = ['Semua', 'Pending', 'Diproses', 'Selesai'];
+  List<Map<String, dynamic>> _tickets = [];
+  bool _loading = true;
+
+  final _tabs = [
+    'Semua',
+    'Open',
+    'Assigned',
+    'In Progress',
+    'Close',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+    );
+
+    _loadTickets();
   }
 
   @override
@@ -35,12 +50,35 @@ class _TicketListScreenState extends State<TicketListScreen>
     super.dispose();
   }
 
+  Future<void> _loadTickets() async {
+    if (mounted) {
+      setState(() => _loading = true);
+    }
+    try {
+      if (SessionService.isAdmin) {
+        _tickets = await TicketService.getAllTickets();
+      } else if (SessionService.isHelpdeskOnly) {
+        _tickets = await TicketService.getAssignedTickets(
+          SessionService.userId,
+        );
+      } else {
+        _tickets = await TicketService.getMyTickets(
+          SessionService.userId,
+        );
+      }
+
+    } catch (e) {
+      debugPrint('LOAD TICKETS ERROR: $e');
+    }
+
+    if (mounted) {
+      setState(() => _loading = false);
+    }
+  }
+
   // ── Filter pipeline ────────────────────────────────────────────────────────
-  // Step 1: DummyDataService.getTicketsForCurrentUser() → filter berdasarkan role
-  // Step 2: filter berdasarkan status (tab)
-  // Step 3: filter berdasarkan query search
   List<Map<String, dynamic>> _filtered(String? status) {
-    return DummyDataService.getTicketsForCurrentUser().where((t) {
+    return _tickets.where((t) {
       final matchStatus = status == null || t['status'] == status;
       final matchSearch = _query.isEmpty ||
           t['title'].toLowerCase().contains(_query.toLowerCase()) ||
@@ -106,14 +144,19 @@ class _TicketListScreenState extends State<TicketListScreen>
           ]),
         ),
       ),
-      body: TabBarView(
+      body: _loading
+      ? const Center(
+          child: CircularProgressIndicator(),
+        )
+      :TabBarView(
         controller: _tabController,
         children: [
-          _TicketTab(tickets: _filtered(null)),
-          _TicketTab(tickets: _filtered('Pending')),
-          _TicketTab(tickets: _filtered('Diproses')),
-          _TicketTab(tickets: _filtered('Selesai')),
-        ],
+          _TicketTab(tickets: _filtered(null), onRefresh: _loadTickets),
+          _TicketTab(tickets: _filtered('Open'), onRefresh: _loadTickets),
+          _TicketTab(tickets: _filtered('Assigned'), onRefresh: _loadTickets),
+          _TicketTab(tickets: _filtered('In Progress'), onRefresh: _loadTickets),
+          _TicketTab(tickets: _filtered('Close'), onRefresh: _loadTickets),
+        ]
       ),
     );
   }
@@ -121,7 +164,14 @@ class _TicketListScreenState extends State<TicketListScreen>
 
 class _TicketTab extends StatelessWidget {
   final List<Map<String, dynamic>> tickets;
-  const _TicketTab({required this.tickets});
+  final Future<void> Function() onRefresh;
+
+  const _TicketTab({
+    super.key, 
+    required this.tickets, 
+    required this.onRefresh,
+  });
+  
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +185,7 @@ class _TicketTab extends StatelessWidget {
       );
     }
     return RefreshIndicator(
-      onRefresh: () async => await Future.delayed(const Duration(seconds: 1)),
+      onRefresh: onRefresh ,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         itemCount: tickets.length,

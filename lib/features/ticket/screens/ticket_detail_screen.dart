@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_utils.dart';
-import '../../../shared/services/dummy_data_service.dart';
-import '../../../shared/services/session_service.dart';
+import '../services/ticket_service.dart';
+import '../services/comment_service.dart';
+import '../services/history_service.dart';
+import '../../notification/services/notification_service.dart';
+import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,9 +30,14 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     _load();
   }
 
-  void _load() {
-    // findTicketById sudah memvalidasi akses berdasarkan role
-    setState(() => _ticket = DummyDataService.findTicketById(widget.ticketId));
+  Future<void> _load() async {
+    final ticket = await TicketService.getTicketById(widget.ticketId);
+
+    if (!mounted) return;
+
+    setState(() {
+      _ticket = ticket;
+    });
   }
 
   @override
@@ -44,54 +52,54 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     if (text.isEmpty) return;
     setState(() => _sending = true);
     await Future.delayed(const Duration(milliseconds: 500));
-    DummyDataService.addComment(widget.ticketId, text);
+    await CommentService.addComment(
+      ticketId: widget.ticketId,
+      userId: SessionService.userId,
+      userName: SessionService.userName,
+      role: SessionService.userRole,
+      text: text,
+    );
     _commentCtrl.clear();
     _load();
     setState(() => _sending = false);
     if (mounted) AppUtils.showSnackBar(context, 'Komentar berhasil dikirim');
   }
 
-  // ── Update status — HANYA helpdesk & admin ─────────────────────────────────
-  void _showStatusPicker() {
-    if (!SessionService.canManageTickets) return; // guard
-    final statuses = ['Pending', 'Diproses', 'Selesai', 'Dibatalkan'];
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Ubah Status Laporan',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          ...statuses.map((s) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Container(width: 12, height: 12,
-                decoration: BoxDecoration(color: AppTheme.getStatusColor(s), shape: BoxShape.circle)),
-            title: Text(s),
-            trailing: _ticket?['status'] == s
-                ? Icon(Icons.check_rounded, color: Theme.of(context).colorScheme.primary)
-                : null,
-            onTap: () {
-              Navigator.pop(ctx);
-              final ok = DummyDataService.updateTicketStatus(widget.ticketId, s);
-              if (ok) {
-                _load();
-                AppUtils.showSnackBar(context, 'Status diperbarui ke "$s"');
-              }
-            },
-          )),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
+  Future<void> _acceptTicket() async {
+    if (_ticket == null) return;
+
+    try {
+      await TicketService.acceptTicket(
+        ticketId: _ticket!['id'],
+        actorId: SessionService.userId,
+        actorName: SessionService.userName,
+        status: 'Assigned',
+        stage: 'Ticket diterima oleh Admin',
+        description: 'Admin telah menerima ticket dan siap melakukan penugasan.',
+        location: _ticket!['location'] ?? '-',
+      );
+
+      if (!mounted) return;
+
+      AppUtils.showSnackBar(
+        context,
+        'Ticket berhasil diterima.',
+      );
+
+      _load();
+    } catch (e) {
+      AppUtils.showSnackBar(
+        context,
+        'Gagal menerima ticket.',
+        isError: true,
+      );
+    }
   }
 
   // ── Assign laporan — HANYA admin ─────────────────────────────────────────────
-  void _showAssignPicker() {
+  void _showAssignPicker() async {
     if (!SessionService.canAssignTickets) return; // guard
-    final helpdeskList = DummyDataService.helpdeskList;
+    final helpdeskList = await TicketService.getHelpdeskList();
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -112,7 +120,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 : null,
             onTap: () {
               Navigator.pop(ctx);
-              final ok = DummyDataService.assignTicket(
+              final ok = TicketService.assignTicketToStaff(
                   widget.ticketId, h['id'], h['name']);
               if (ok) {
                 _load();
@@ -159,20 +167,21 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          // ── Tombol Assign — hanya admin ──────────────────────────────
-          if (SessionService.canAssignTickets)
-            TextButton.icon(
-              onPressed: _showAssignPicker,
-              icon: const Icon(Icons.person_add_rounded, size: 16),
-              label: const Text('Assign', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            ),
-          // ── Tombol Status — hanya helpdesk & admin ───────────────────
-          if (SessionService.canManageTickets)
-            TextButton.icon(
-              onPressed: _showStatusPicker,
-              icon: const Icon(Icons.edit_rounded, size: 16),
-              label: const Text('Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            ),
+          if (SessionService.canAssignTickets &&
+            ticket['status'] == 'Open')
+          TextButton.icon(
+            onPressed: _acceptTicket,
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text("Terima"),
+          ),
+
+        if (SessionService.canAssignTickets &&
+            ticket['status'] == 'Assigned')
+          TextButton.icon(
+            onPressed: _showAssignPicker,
+            icon: const Icon(Icons.person_add_alt_1),
+            label: const Text("Assign"),
+          ),
         ],
       ),
       body: Column(children: [
@@ -215,7 +224,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                     value: AppUtils.formatDateTime(DateTime.parse(ticket['createdAt']))),
                 const Divider(height: 20),
                 _InfoRow(icon: Icons.update_rounded,         label: 'Diperbarui',
-                    value: AppUtils.formatDateTime(DateTime.parse(ticket['updatedAt']))),
+                    value: AppUtils.formatDateTime(DateTime.parse(ticket['updated_at']))),
                 // Kolom assigned — hanya tampil jika ada & yang lihat adalah helpdesk/admin
                 if (SessionService.canManageTickets) ...[
                   const Divider(height: 20),

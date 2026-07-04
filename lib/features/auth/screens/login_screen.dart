@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../shared/services/dummy_data_service.dart';
-import '../../../shared/services/session_service.dart';
+import '../services/auth_service.dart';
+import '../../../core/services/session_service.dart';
+import '../models/user_model.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import 'register_screen.dart';
@@ -43,31 +44,55 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
-  // ── LOGIN LOGIC ────────────────────────────────────────────────────────────
-  // Flow: validasi form → cari user di DummyDataService → simpan ke SessionService
-  //       → arahkan ke DashboardScreen (tanpa bisa back ke login)
+  // Flow:
+  // Validasi form
+  // ↓
+  // AuthService
+  // ↓
+  // SessionService
+  // ↓
+  // Dashboard
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1000)); // simulasi network
 
-    final user = DummyDataService.findUser(
-      _emailCtrl.text.trim(),
-      _passwordCtrl.text.trim(),
-    );
-
-    if (!mounted) return;
-    if (user != null) {
-      // ✅ Login berhasil: simpan sesi lalu navigasi ke Dashboard
-      SessionService.login(user);
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        (route) => false, // hapus semua history → tidak bisa back ke login
+    try {
+      final UserModel? user = await AuthService.login(
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text.trim(),
       );
-    } else {
-      // ❌ Login gagal
-      setState(() => _isLoading = false);
-      AppUtils.showSnackBar(context, 'Email atau password salah.', isError: true);
+
+      if (!mounted) return;
+
+      if (user != null) {
+        // Simpan session
+        SessionService.login(user);
+
+        // Pindah ke Dashboard
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const DashboardScreen(),
+          ),
+          (route) => false,
+        );
+      } else {
+        AppUtils.showSnackBar(
+          context,
+          'Email atau password salah.',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      AppUtils.showSnackBar(
+        context,
+        'Terjadi kesalahan saat login.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

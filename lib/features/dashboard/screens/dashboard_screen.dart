@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/services/dummy_data_service.dart';
-import '../../../shared/services/session_service.dart';
+import '../../../core/utils/app_utils.dart';
+
+import '../../../core/services/session_service.dart';
+import '../services/dashboard_service.dart';
+import '../../notification/services/notification_service.dart';
+import '../../ticket/models/ticket_model.dart';
+
+import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../ticket/screens/ticket_list_screen.dart';
 import '../../ticket/screens/create_ticket_screen.dart';
@@ -83,7 +89,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 label: 'Notifikasi',
                 index: 2,
                 current: _currentIndex,
-                badge: DummyDataService.getUnreadCount(),
+                badge: NotificationService.getUnreadCount(),
                 onTap: _navigate),
             _NavItem(
                 icon: Icons.person_rounded,
@@ -150,10 +156,17 @@ class _NavItem extends StatelessWidget {
 }
 
 // ── Dashboard home page ────────────────────────────────────────────────────────
-class _DashboardHome extends StatelessWidget {
+class _DashboardHome extends StatefulWidget {
   final void Function(int) onNavigate;
   final VoidCallback onRefresh;
-  const _DashboardHome({required this.onNavigate, required this.onRefresh});
+
+  const _DashboardHome({
+    required this.onNavigate,
+    required this.onRefresh,
+  });
+
+  @override
+  State<_DashboardHome> createState() => _DashboardHomeState();
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -197,9 +210,9 @@ class _DashboardHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme  = Theme.of(context);
-    final stats  = DummyDataService.getDashboardStats();
+    final stats  = DashboardService.getDashboardStats();
     // Laporan terbaru: sudah difilter per role oleh getTicketsForCurrentUser()
-    final recent = DummyDataService.getTicketsForCurrentUser().take(3).toList();
+    final recent = DashboardService.getRecentTickets().take(3).toList();
 
   return Scaffold(
     // Header FIXED di atas — tidak ikut scroll
@@ -476,7 +489,7 @@ class _QuickActions extends StatelessWidget {
         'icon': Icons.notifications_active_rounded,
         'label': 'Notifikasi',
         'color': AppTheme.warningColor,
-        'badge': DummyDataService.getUnreadCount(),
+        'badge': NotificationService.getUnreadCount(),
         'onTap': () => onNavigate(2),
       },
       if (SessionService.canManageTickets) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/services/dummy_data_service.dart';
-import '../../../shared/services/session_service.dart';
+import '../../../core/services/session_service.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
