@@ -1,5 +1,6 @@
 class ReportModel {
   final String id;
+  final String? code; // Business Code: R001, R002, ...
   final String ticketId;
   final String resolvedBy;
   final String resolution;
@@ -11,6 +12,7 @@ class ReportModel {
 
   const ReportModel({
     required this.id,
+    this.code,
     required this.ticketId,
     required this.resolvedBy,
     required this.resolution,
@@ -25,6 +27,7 @@ class ReportModel {
   factory ReportModel.fromJson(Map<String, dynamic> json) {
     return ReportModel(
       id: json['id'] ?? '',
+      code: json['code'],
       ticketId: json['ticket_id'] ?? '',
       resolvedBy: json['resolved_by'] ?? '',
       resolution: json['resolution'] ?? '',
@@ -40,6 +43,7 @@ class ReportModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (code != null) 'code': code,
       'ticket_id': ticketId,
       'resolved_by': resolvedBy,
       'resolution': resolution,
@@ -54,6 +58,7 @@ class ReportModel {
   /// Copy Object
   ReportModel copyWith({
     String? id,
+    String? code,
     String? ticketId,
     String? resolvedBy,
     String? resolution,
@@ -65,6 +70,7 @@ class ReportModel {
   }) {
     return ReportModel(
       id: id ?? this.id,
+      code: code ?? this.code,
       ticketId: ticketId ?? this.ticketId,
       resolvedBy: resolvedBy ?? this.resolvedBy,
       resolution: resolution ?? this.resolution,

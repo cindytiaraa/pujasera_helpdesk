@@ -14,24 +14,35 @@ class AppConstants {
   static const String routeProfile = '/profile';
 
   // Ticket status
-  static const String statusPending = 'Pending';
-  static const String statusProcess = 'Diproses';
-  static const String statusDone = 'Selesai';
-  static const String statusCancelled = 'Dibatalkan';
+  static const String statusOpen        = 'Open';
+  static const String statusAssigned    = 'Assigned';
+  static const String statusInProgress  = 'In Progress';
+  static const String statusClose       = 'Close';
 
   // Ticket priority
-  static const String priorityLow = 'Rendah';
+  static const String priorityLow    = 'Rendah';
   static const String priorityMedium = 'Sedang';
-  static const String priorityHigh = 'Tinggi';
+  static const String priorityHigh   = 'Tinggi';
 
-  // Ticket category
+  // Ticket category — sesuai tema Smart Pujasera Helpdesk
   static const List<String> ticketCategories = [
+    'Listrik',
+    'Air',
     'Kebersihan',
-    'Fasilitas',
-    'Tenant/Kios',
-    'Pembayaran',
-    'Keamanan',
-    'Pelayanan',
+    'Internet',
+    'Peralatan',
+    'AC',
     'Lainnya',
+  ];
+
+  // Department list — sesuai tema pujasera
+  static const List<String> departments = [
+    'Tenant Bakso',
+    'Tenant Soto',
+    'Tenant Ayam Geprek',
+    'Kasir',
+    'Cleaning Service',
+    'Keamanan',
+    'Manajemen',
   ];
 }

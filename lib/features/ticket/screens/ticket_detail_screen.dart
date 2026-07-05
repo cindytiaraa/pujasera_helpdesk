@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_utils.dart';
 import '../services/ticket_service.dart';
@@ -9,6 +10,7 @@ import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../models/ticket_model.dart';
 import '../models/comment_model.dart';
+import '../models/history_model.dart';
 import '../../auth/models/user_model.dart';
 import '../../profile/services/profile_service.dart';
 
@@ -30,6 +32,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   UserModel? _reporter;
   UserModel? _assignedTo;
   List<CommentModel> _comments = [];
+  List<HistoryModel> _histories = [];
   bool _loading = true;
 
   @override
@@ -51,6 +54,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           assignedTo = await ProfileService.getProfile(ticket.assignedToId!);
         }
         final comments = await CommentService.getComments(widget.ticketId);
+        final histories = await HistoryService.getTicketHistory(widget.ticketId);
 
         if (mounted) {
           setState(() {
@@ -58,6 +62,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             _reporter = reporter;
             _assignedTo = assignedTo;
             _comments = comments;
+            _histories = histories;
           });
         }
       } else {
@@ -129,6 +134,36 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
       AppUtils.showSnackBar(
         context,
         'Gagal menerima ticket.',
+        isError: true,
+      );
+    }
+  }
+
+  // ── Finish ticket ───────────────────────────────────────────────────────
+  Future<void> _finishTicket() async {
+    if (_ticket == null) return;
+
+    try {
+      await TicketService.finishTicket(
+        ticketId: _ticket!.id,
+        helpdeskId: SessionService.userId,
+        helpdeskName: SessionService.userName,
+      );
+
+      if (!mounted) return;
+
+      AppUtils.showSnackBar(
+        context,
+        'Ticket berhasil diselesaikan.',
+      );
+
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+
+      AppUtils.showSnackBar(
+        context,
+        'Gagal menyelesaikan ticket.',
         isError: true,
       );
     }
@@ -222,10 +257,12 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     final theme    = Theme.of(context);
     final ticket   = _ticket!;
     final comments = _comments;
+    // Judul AppBar: tampilkan code jika ada, fallback ke id
+    final appBarTitle = ticket.code != null ? ticket.code! : ticket.id;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(ticket.id,
+        title: Text(appBarTitle,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -246,6 +283,15 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             onPressed: _showAssignPicker,
             icon: const Icon(Icons.person_add_alt_1),
             label: const Text("Assign"),
+          ),
+
+        if (SessionService.isHelpdesk &&
+            ticket.status == 'In Progress' &&
+            ticket.assignedToId == SessionService.userId)
+          TextButton.icon(
+            onPressed: _finishTicket,
+            icon: const Icon(Icons.check_circle),
+            label: const Text("Finish"),
           ),
         ],
       ),
@@ -322,11 +368,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Tracking timeline
+            // Tracking timeline — dinamis dari history (REQ 9)
             Text('Tracking Status',
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            _TrackingTimeline(status: ticket.status),
+            _HistoryTracking(histories: _histories, currentStatus: ticket.status),
             const SizedBox(height: 20),
 
             // Komentar
@@ -462,8 +508,11 @@ class _CommentBubble extends StatelessWidget {
                     style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: bubbleColor)),
               ),
             const Spacer(),
-            Text(AppUtils.timeAgo(comment.createdAt),
-                style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.4))),
+            // REQ 7: Format tanggal dan jam
+            Text(
+              DateFormat('dd MMM yyyy • HH:mm').format(comment.createdAt),
+              style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+            ),
           ]),
           const SizedBox(height: 6),
           Container(
@@ -492,72 +541,148 @@ class _CommentBubble extends StatelessWidget {
   }
 }
 
-// ── Tracking timeline ─────────────────────────────────────────────────────────
-class _TrackingTimeline extends StatelessWidget {
-  final String status;
-  const _TrackingTimeline({required this.status});
+// ── History Tracking (Shopee-style vertikal) ─────────────────────────────────
+// REQ 9: Dinamis dari data ticket_history, tidak hardcoded.
+class _HistoryTracking extends StatelessWidget {
+  final List<HistoryModel> histories;
+  final String currentStatus;
+
+  const _HistoryTracking({
+    required this.histories,
+    required this.currentStatus,
+  });
+
+  // Urutan stage yang wajib ditampilkan sesuai business flow
+  static const _stageOrder = [
+    {'status': 'Open',        'label': 'Tiket Dibuat',         'icon': Icons.add_circle_outline_rounded},
+    {'status': 'Assigned',    'label': 'Diterima Admin',        'icon': Icons.admin_panel_settings_rounded},
+    {'status': 'In Progress', 'label': 'Sedang Dikerjakan',     'icon': Icons.build_circle_rounded},
+    {'status': 'Close',       'label': 'Selesai',               'icon': Icons.check_circle_rounded},
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
-    final stages = [
-      {'label': 'Dibuat',    'status': 'Open',  'icon': Icons.add_circle_outline_rounded},
-      {'label': 'Diproses',  'status': 'In Progress', 'icon': Icons.build_circle_rounded},
-      {'label': 'Selesai',   'status': 'Close',  'icon': Icons.check_circle_rounded},
-    ];
+    final theme = Theme.of(context);
 
-    if (status == 'Dibatalkan') {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.cancelledColor.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppTheme.cancelledColor.withOpacity(0.3)),
-        ),
-        child: Row(children: [
-          Icon(Icons.cancel_rounded, color: AppTheme.cancelledColor, size: 18),
-          const SizedBox(width: 8),
-          Text('Laporan ini telah dibatalkan.',
-              style: TextStyle(color: AppTheme.cancelledColor, fontSize: 13)),
-        ]),
-      );
-    }
+    // Kumpulkan status yang sudah dicapai dari history
+    final achievedStatuses = histories.map((h) => h.status).toSet();
 
-    int currentIdx = 0;
-    if (status == 'Assigned' || status == 'In Progress') currentIdx = 1;
-    if (status == 'Close')  currentIdx = 2;
+    return Column(
+      children: List.generate(_stageOrder.length, (i) {
+        final stage = _stageOrder[i];
+        final stageStatus = stage['status'] as String;
+        final stageLabel  = stage['label']  as String;
+        final stageIcon   = stage['icon']   as IconData;
+        final isLast      = i == _stageOrder.length - 1;
 
-    return Row(
-      children: List.generate(stages.length * 2 - 1, (i) {
-        if (i.isOdd) {
-          final isActive = (i ~/ 2) < currentIdx;
-          return Expanded(child: Container(height: 2,
-              color: isActive ? AppTheme.doneColor : theme.colorScheme.onSurface.withOpacity(0.1)));
-        }
-        final idx      = i ~/ 2;
-        final stage    = stages[idx];
-        final isActive = idx <= currentIdx;
-        final isCur    = idx == currentIdx;
-        final color    = isActive
-            ? AppTheme.getStatusColor(stage['status'] as String)
-            : theme.colorScheme.onSurface.withOpacity(0.2);
+        // Cari history entry yang cocok dengan status ini
+        final matchingHistory = histories.where((h) => h.status == stageStatus).toList();
+        final isDone = achievedStatuses.contains(stageStatus);
+        final isCurrent = stageStatus == currentStatus && !isDone ||
+            (stageStatus == currentStatus);
+        final color = isDone
+            ? AppTheme.getStatusColor(stageStatus)
+            : theme.colorScheme.onSurface.withOpacity(0.25);
 
-        return Column(children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isActive ? color.withOpacity(0.12) : Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(color: color, width: isCur ? 2.5 : 1.5),
-            ),
-            child: Icon(stage['icon'] as IconData, size: 16, color: color),
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Kolom kiri: ikon + garis vertikal
+              SizedBox(
+                width: 40,
+                child: Column(
+                  children: [
+                    // Ikon lingkaran
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: isDone ? color.withOpacity(0.12) : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: color,
+                          width: isCurrent && isDone ? 2.5 : 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: isDone
+                            ? Icon(Icons.check_rounded, size: 16, color: color)
+                            : Icon(stageIcon, size: 14, color: color),
+                      ),
+                    ),
+                    // Garis vertikal (kecuali item terakhir)
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          color: isDone
+                              ? color.withOpacity(0.4)
+                              : theme.colorScheme.onSurface.withOpacity(0.1),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Kolom kanan: konten teks
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 6),
+                      Text(
+                        stageLabel,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isDone ? FontWeight.w700 : FontWeight.w400,
+                          color: isDone
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.onSurface.withOpacity(0.35),
+                        ),
+                      ),
+                      if (matchingHistory.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        // Tampilkan info dari history entry
+                        Text(
+                          '${matchingHistory.first.actorName} • ${DateFormat("dd MMM yyyy • HH:mm").format(matchingHistory.first.createdAt)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                        ),
+                        if (matchingHistory.first.description.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            matchingHistory.first.description,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurface.withOpacity(0.45),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ] else if (!isDone) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Menunggu...',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurface.withOpacity(0.35),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(stage['label'] as String,
-              style: TextStyle(fontSize: 10, fontWeight: isCur ? FontWeight.w700 : FontWeight.w400,
-                  color: isActive ? color : theme.colorScheme.onSurface.withOpacity(0.3)),
-              textAlign: TextAlign.center),
-        ]);
+        );
       }),
     );
   }

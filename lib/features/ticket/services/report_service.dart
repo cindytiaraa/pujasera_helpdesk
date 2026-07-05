@@ -11,8 +11,16 @@ class ReportService {
     int? customerRating,
     String? customerFeedback,
   }) async {
+    // Generate business code R001, R002, ...
+    final countResult = await SupabaseService.client
+        .from('ticket_reports')
+        .select('id');
+    final seq = (countResult.length + 1).toString().padLeft(3, '0');
+    final businessCode = 'R$seq';
+
     await SupabaseService.client.from('ticket_reports').insert({
       'id': SupabaseService.uuid.v4(),
+      'code': businessCode,
       'ticket_id': ticketId,
       'resolved_by': resolvedBy,
       'resolution': resolution,

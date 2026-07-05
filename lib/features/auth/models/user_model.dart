@@ -1,5 +1,6 @@
 class UserModel {
   final String id;
+  final String? code; // Business Code: U001, U002, ...
   final String name;
   final String email;
   final String? phone;
@@ -8,8 +9,10 @@ class UserModel {
   final String? avatar;
   final String password;
 
+
   const UserModel({
     required this.id,
+    this.code,
     required this.name,
     required this.email,
     this.phone,
@@ -23,6 +26,7 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] ?? '',
+      code: json['code'],
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'],
@@ -37,6 +41,7 @@ class UserModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (code != null) 'code': code,
       'name': name,
       'email': email,
       'phone': phone,
@@ -50,6 +55,7 @@ class UserModel {
   /// Copy Object
   UserModel copyWith({
     String? id,
+    String? code,
     String? name,
     String? email,
     String? phone,
@@ -60,6 +66,7 @@ class UserModel {
   }) {
     return UserModel(
       id: id ?? this.id,
+      code: code ?? this.code,
       name: name ?? this.name,
       email: email ?? this.email,
       phone: phone ?? this.phone,
@@ -81,6 +88,7 @@ class UserModel {
 
     return other is UserModel &&
         other.id == id &&
+        other.code == code &&
         other.name == name &&
         other.email == email &&
         other.phone == phone &&
@@ -94,6 +102,7 @@ class UserModel {
   int get hashCode {
     return Object.hash(
       id,
+      code,
       name,
       email,
       phone,

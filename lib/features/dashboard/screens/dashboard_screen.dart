@@ -77,8 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     // FAB hanya untuk user biasa (buat laporan baru)
-    final showFab = SessionService.canCreateTicket &&
-        (_currentIndex == 0 || _currentIndex == 1);
+    final showFab = SessionService.canCreateTicket;
 
     return Scaffold(
       body: pages[_currentIndex],

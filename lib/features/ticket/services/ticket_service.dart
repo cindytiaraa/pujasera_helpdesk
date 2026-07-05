@@ -5,6 +5,30 @@ import '../models/ticket_model.dart';
 import '../../auth/models/user_model.dart';
 
 class TicketService {
+
+  // =========================================================
+  // GENERATE BUSINESS CODE
+  // =========================================================
+
+  static Future<String> generateTicketCode() async {
+    final result = await SupabaseService.client
+        .from('tickets')
+        .select('code')
+        .order('code', ascending: false)
+        .limit(1);
+
+    if (result.isEmpty || result.first['code'] == null) {
+      return 'T001';
+    }
+
+    final lastCode = result.first['code'] as String;
+
+    final lastNumber = int.parse(lastCode.substring(1));
+
+    final nextNumber = lastNumber + 1;
+
+    return 'T${nextNumber.toString().padLeft(3, '0')}';
+  }
   // =========================================================
   // CREATE TICKET
   // =========================================================
@@ -13,10 +37,13 @@ class TicketService {
       TicketModel ticket) async {
     try {
       final ticketId = SupabaseService.uuid.v4();
+      final businessCode = await generateTicketCode();
 
       final newTicket = ticket.copyWith(
         id: ticketId,
+        code: businessCode,
         status: 'Open',
+        assignedToId: null, // REQ 5: selalu null saat dibuat
         currentStage: 'Tiket berhasil dibuat',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

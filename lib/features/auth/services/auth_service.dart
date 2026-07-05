@@ -41,8 +41,16 @@ class AuthService {
         .take(2)
         .join();
 
+    // Generate business code U001, U002, ...
+    final countResult = await SupabaseService.client
+        .from('users')
+        .select('id');
+    final seq = (countResult.length + 1).toString().padLeft(3, '0');
+    final businessCode = 'U$seq';
+
     final data = {
       'id': SupabaseService.uuid.v4(),
+      'code': businessCode,
       'name': name,
       'email': email,
       'phone': phone,

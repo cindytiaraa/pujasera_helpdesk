@@ -216,6 +216,16 @@ class AppTheme {
   // Helper: get status color
   static Color getStatusColor(String status) {
     switch (status) {
+      // Status baru (business flow)
+      case 'Open':
+        return pendingColor;
+      case 'Assigned':
+        return const Color(0xFF9C27B0); // purple
+      case 'In Progress':
+        return processColor;
+      case 'Close':
+        return doneColor;
+      // Status lama (backward compatibility)
       case 'Pending':
         return pendingColor;
       case 'Diproses':

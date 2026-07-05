@@ -204,9 +204,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
-                  labelText: 'Departemen / Bagian',
+                  labelText: 'Departemen',
                   prefixIcon: Icon(Icons.business_outlined, size: 20),
-                  hintText: 'Contoh: Keuangan, IT, SDM',
+                  hintText: 'Contoh: Manajemen, Pelayanan, Pengunjung',
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Departemen wajib diisi';

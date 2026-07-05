@@ -1,5 +1,6 @@
 class TicketModel {
   final String id;
+  final String? code; // Business Code: T001, T002, ...
   final String title;
   final String description;
   final String category;
@@ -14,6 +15,7 @@ class TicketModel {
 
   const TicketModel({
     required this.id,
+    this.code,
     required this.title,
     required this.description,
     required this.category,
@@ -31,6 +33,7 @@ class TicketModel {
   factory TicketModel.fromJson(Map<String, dynamic> json) {
     return TicketModel(
       id: json['id'] ?? '',
+      code: json['code'],
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       category: json['category'] ?? '',
@@ -51,6 +54,7 @@ class TicketModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'code': code,
       'title': title,
       'description': description,
       'category': category,
@@ -68,6 +72,7 @@ class TicketModel {
   /// Copy Object
   TicketModel copyWith({
     String? id,
+    String? code,
     String? title,
     String? description,
     String? category,
@@ -82,6 +87,7 @@ class TicketModel {
   }) {
     return TicketModel(
       id: id ?? this.id,
+      code: code ?? this.code,
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,
@@ -98,7 +104,12 @@ class TicketModel {
 
   @override
   String toString() {
-    return 'TicketModel(id: $id, title: $title, status: $status)';
+    return 'TicketModel('
+        'id: $id, '
+        'code: $code, '
+        'title: $title, '
+        'status: $status'
+        ')';
   }
 
   @override
@@ -107,6 +118,7 @@ class TicketModel {
 
     return other is TicketModel &&
         other.id == id &&
+        other.code == code &&
         other.title == title &&
         other.description == description &&
         other.category == category &&
@@ -124,6 +136,7 @@ class TicketModel {
   int get hashCode {
     return Object.hash(
       id,
+      code,
       title,
       description,
       category,
