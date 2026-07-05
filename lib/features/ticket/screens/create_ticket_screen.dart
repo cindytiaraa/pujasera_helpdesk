@@ -4,6 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../../core/services/session_service.dart';
 import '../services/ticket_service.dart';
+import '../models/ticket_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CreateTicketScreen
@@ -38,26 +39,38 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
 
-    final newTicket = await TicketService.createTicket({
-      'title': _titleCtrl.text.trim(),
-      'description': _descCtrl.text.trim(),
-      'category': _category,
-      'priority': _priority,
-      'user_id': SessionService.userId,
-      'assigned_to_id': null,
-      'location': _locationCtrl.text.trim(),
-    });
+    try {
+      final ticketInput = TicketModel(
+        id: '', // Service will override this
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        category: _category,
+        priority: _priority,
+        status: 'Open', // Service will override this
+        userId: SessionService.userId,
+        assignedToId: null,
+        createdAt: DateTime.now(), // Service will override this
+        updatedAt: DateTime.now(), // Service will override this
+        location: _locationCtrl.text.trim(),
+        currentStage: 'Tiket berhasil dibuat', // Service will override this
+      );
 
-    if (!mounted) return;
-    setState(() => _submitting = false);
+      final newTicket = await TicketService.createTicket(ticketInput);
 
-    if (newTicket != null) {
-      AppUtils.showSnackBar(context, 'Laporan ${newTicket['id']} berhasil dibuat!');
-      if(newTicket!=null){
+      if (!mounted) return;
+      setState(() => _submitting = false);
+
+      if (newTicket != null) {
+        AppUtils.showSnackBar(context, 'Laporan ${newTicket.id} berhasil dibuat!');
         Navigator.pop(context);
+      } else {
+        AppUtils.showSnackBar(context, 'Gagal membuat laporan.', isError: true);
       }
-    } else {
-      AppUtils.showSnackBar(context, 'Gagal membuat laporan.', isError: true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        AppUtils.showSnackBar(context, 'Error: ${e.toString()}', isError: true);
+      }
     }
   }
 

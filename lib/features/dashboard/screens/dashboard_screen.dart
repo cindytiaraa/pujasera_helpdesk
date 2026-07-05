@@ -28,15 +28,49 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
+  int _unreadCount = 0;
+  int _refreshCount = 0;
 
-  void _navigate(int index) => setState(() => _currentIndex = index);
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
 
-  void _refresh() => setState(() {});
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await NotificationService.getUnreadCount(SessionService.userId);
+      if (mounted) {
+        setState(() {
+          _unreadCount = count;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading unread count: $e');
+    }
+  }
+
+  void _navigate(int index) {
+    setState(() => _currentIndex = index);
+    _loadUnreadCount();
+  }
+
+  void _refresh() {
+    setState(() {
+      _refreshCount++;
+    });
+    _loadUnreadCount();
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      _DashboardHome(onNavigate: _navigate, onRefresh: _refresh),
+      _DashboardHome(
+        key: ValueKey(_refreshCount),
+        onNavigate: _navigate,
+        onRefresh: _refresh,
+        unreadCount: _unreadCount,
+      ),
       const TicketListScreen(),
       const NotificationScreen(),
       const ProfileScreen(),
@@ -56,7 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => const CreateTicketScreen()),
                 );
-                setState(() {});
+                _refresh();
               },
               child: const Icon(Icons.add_rounded),
             )
@@ -89,7 +123,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 label: 'Notifikasi',
                 index: 2,
                 current: _currentIndex,
-                badge: NotificationService.getUnreadCount(),
+                badge: _unreadCount,
                 onTap: _navigate),
             _NavItem(
                 icon: Icons.person_rounded,
@@ -159,14 +193,57 @@ class _NavItem extends StatelessWidget {
 class _DashboardHome extends StatefulWidget {
   final void Function(int) onNavigate;
   final VoidCallback onRefresh;
+  final int unreadCount;
 
   const _DashboardHome({
+    super.key,
     required this.onNavigate,
     required this.onRefresh,
+    required this.unreadCount,
   });
 
   @override
   State<_DashboardHome> createState() => _DashboardHomeState();
+}
+
+class _DashboardHomeState extends State<_DashboardHome> {
+  Map<String, int> _stats = {
+    'total': 0,
+    'open': 0,
+    'assigned': 0,
+    'in_progress': 0,
+    'close': 0,
+  };
+  List<TicketModel> _recentTickets = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final stats = await DashboardService.getStatistics();
+      final recent = await DashboardService.getRecentTickets(limit: 3);
+
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _recentTickets = recent;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading dashboard stats: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -210,9 +287,10 @@ class _DashboardHome extends StatefulWidget {
   @override
   Widget build(BuildContext context) {
     final theme  = Theme.of(context);
-    final stats  = DashboardService.getDashboardStats();
-    // Laporan terbaru: sudah difilter per role oleh getTicketsForCurrentUser()
-    final recent = DashboardService.getRecentTickets().take(3).toList();
+    final total = _stats['total'] ?? 0;
+    final pending = (_stats['open'] ?? 0) + (_stats['assigned'] ?? 0);
+    final process = _stats['in_progress'] ?? 0;
+    final done = _stats['close'] ?? 0;
 
   return Scaffold(
     // Header FIXED di atas — tidak ikut scroll
@@ -294,7 +372,7 @@ class _DashboardHome extends StatefulWidget {
             title: const Text('Dashboard'),
             onTap: () {
               Navigator.pop(context);
-              onNavigate(0);
+              widget.onNavigate(0);
             },
           ),
           ListTile(
@@ -302,7 +380,7 @@ class _DashboardHome extends StatefulWidget {
             title: const Text('Laporan'),
             onTap: () {
               Navigator.pop(context);
-              onNavigate(1);
+              widget.onNavigate(1);
             },
           ),
           ListTile(
@@ -310,7 +388,7 @@ class _DashboardHome extends StatefulWidget {
             title: const Text('Notifikasi'),
             onTap: () {
               Navigator.pop(context);
-              onNavigate(2);
+              widget.onNavigate(2);
             },
           ),
           ListTile(
@@ -318,7 +396,7 @@ class _DashboardHome extends StatefulWidget {
             title: const Text('Profil'),
             onTap: () {
               Navigator.pop(context);
-              onNavigate(3);
+              widget.onNavigate(3);
             },
           ),
           const Divider(),
@@ -334,7 +412,9 @@ class _DashboardHome extends StatefulWidget {
       ),
     ),
     // Konten scrollable biasa — bukan CustomScrollView + Sliver
-    body: SingleChildScrollView(
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +450,7 @@ class _DashboardHome extends StatefulWidget {
           SectionHeader(
             title: SessionService.canManageTickets ? 'Semua Laporan' : 'Laporan Saya',
             actionLabel: 'Lihat Semua',
-            onAction: () => onNavigate(1),
+            onAction: () => widget.onNavigate(1),
           ),
           const SizedBox(height: 14),
           GridView.count(
@@ -381,24 +461,24 @@ class _DashboardHome extends StatefulWidget {
             mainAxisSpacing: 12,
             childAspectRatio: 1.5, 
             children: [
-              StatCard(label: 'Total',    count: stats['total'],   color: theme.colorScheme.primary,   icon: Icons.confirmation_number_rounded, onTap: () => onNavigate(1)),
-              StatCard(label: 'Menunggu', count: stats['pending'],  color: AppTheme.pendingColor,       icon: Icons.schedule_rounded,           onTap: () => onNavigate(1)),
-              StatCard(label: 'Diproses', count: stats['process'],  color: AppTheme.processColor,       icon: Icons.build_circle_rounded,       onTap: () => onNavigate(1)),
-              StatCard(label: 'Selesai',  count: stats['done'],     color: AppTheme.doneColor,          icon: Icons.check_circle_rounded,       onTap: () => onNavigate(1)),
+              StatCard(label: 'Total',    count: total,   color: theme.colorScheme.primary,   icon: Icons.confirmation_number_rounded, onTap: () => widget.onNavigate(1)),
+              StatCard(label: 'Menunggu', count: pending,  color: AppTheme.pendingColor,       icon: Icons.schedule_rounded,           onTap: () => widget.onNavigate(1)),
+              StatCard(label: 'Diproses', count: process,  color: AppTheme.processColor,       icon: Icons.build_circle_rounded,       onTap: () => widget.onNavigate(1)),
+              StatCard(label: 'Selesai',  count: done,     color: AppTheme.doneColor,          icon: Icons.check_circle_rounded,       onTap: () => widget.onNavigate(1)),
             ],
           ),
           const SizedBox(height: 28),
           SectionHeader(title: 'Akses Cepat'),
           const SizedBox(height: 14),
-          _QuickActions(onNavigate: onNavigate, onRefresh: onRefresh),
+          _QuickActions(onNavigate: widget.onNavigate, onRefresh: widget.onRefresh, unreadCount: widget.unreadCount),
           const SizedBox(height: 28),
           SectionHeader(
-            title: recent.isEmpty ? 'Laporan Terbaru' : 'Laporan Terbaru (${recent.length})',
+            title: _recentTickets.isEmpty ? 'Laporan Terbaru' : 'Laporan Terbaru (${_recentTickets.length})',
             actionLabel: 'Lihat Semua',
-            onAction: () => onNavigate(1),
+            onAction: () => widget.onNavigate(1),
           ),
           const SizedBox(height: 14),
-          if (recent.isEmpty)
+          if (_recentTickets.isEmpty)
             EmptyState(
               icon: Icons.inbox_rounded,
               title: 'Belum Ada Laporan',
@@ -407,10 +487,10 @@ class _DashboardHome extends StatefulWidget {
                   : 'Belum ada laporan yang masuk.',
             )
           else
-            ...recent.map((t) => TicketCard(
-              ticket: t,
+            ..._recentTickets.map((t) => TicketCard(
+              ticket: t.toJson(),
               onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: t['id']))),
+                  MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: t.id))),
             )),
           const SizedBox(height: 20),
         ],
@@ -465,7 +545,8 @@ class _RoleBanner extends StatelessWidget {
 class _QuickActions extends StatelessWidget {
   final void Function(int) onNavigate;
   final VoidCallback onRefresh;
-  const _QuickActions({required this.onNavigate, required this.onRefresh});
+  final int unreadCount;
+  const _QuickActions({required this.onNavigate, required this.onRefresh, required this.unreadCount});
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +570,7 @@ class _QuickActions extends StatelessWidget {
         'icon': Icons.notifications_active_rounded,
         'label': 'Notifikasi',
         'color': AppTheme.warningColor,
-        'badge': NotificationService.getUnreadCount(),
+        'badge': unreadCount,
         'onTap': () => onNavigate(2),
       },
       if (SessionService.canManageTickets) {

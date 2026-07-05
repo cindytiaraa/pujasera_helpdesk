@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../shared/services/dummy_data_service.dart';
+import '../services/auth_service.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/utils/app_utils.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -38,33 +39,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
 
-    // Simulate registration (add to dummy list)
-    final initials = _nameController.text.trim().split(' ')
-        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
-        .take(2)
-        .join();
+    try {
+      final user = await AuthService.register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        department: _departmentController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-    final newUser = {
-      'id': 'U${DummyDataService.users.length + 1}'.padLeft(4, '0'),
-      'name': _nameController.text.trim(),
-      'email': _emailController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'role': 'user',
-      'department': _departmentController.text.trim(),
-      'avatar': initials,
-      'password': _passwordController.text.trim(),
-    };
+      if (!mounted) return;
 
-    DummyDataService.users.add(newUser);
-    SessionService.login(newUser);
-
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      (route) => false,
-    );
+      if (user != null) {
+        SessionService.login(user);
+        AppUtils.showSnackBar(context, 'Pendaftaran berhasil!');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          (route) => false,
+        );
+      } else {
+        AppUtils.showSnackBar(context, 'Pendaftaran gagal. Silakan coba lagi.', isError: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppUtils.showSnackBar(context, 'Error: ${e.toString()}', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override

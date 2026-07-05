@@ -7,6 +7,10 @@ import '../services/history_service.dart';
 import '../../notification/services/notification_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../models/ticket_model.dart';
+import '../models/comment_model.dart';
+import '../../auth/models/user_model.dart';
+import '../../profile/services/profile_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TicketDetailScreen
@@ -22,7 +26,11 @@ class TicketDetailScreen extends StatefulWidget {
 class _TicketDetailScreenState extends State<TicketDetailScreen> {
   final _commentCtrl = TextEditingController();
   bool _sending = false;
-  Map<String, dynamic>? _ticket;
+  TicketModel? _ticket;
+  UserModel? _reporter;
+  UserModel? _assignedTo;
+  List<CommentModel> _comments = [];
+  bool _loading = true;
 
   @override
   void initState() {
@@ -31,13 +39,41 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   }
 
   Future<void> _load() async {
-    final ticket = await TicketService.getTicketById(widget.ticketId);
+    if (mounted) {
+      setState(() => _loading = true);
+    }
+    try {
+      final ticket = await TicketService.getTicketById(widget.ticketId);
+      if (ticket != null) {
+        final reporter = await ProfileService.getProfile(ticket.userId);
+        UserModel? assignedTo;
+        if (ticket.assignedToId != null) {
+          assignedTo = await ProfileService.getProfile(ticket.assignedToId!);
+        }
+        final comments = await CommentService.getComments(widget.ticketId);
 
-    if (!mounted) return;
-
-    setState(() {
-      _ticket = ticket;
-    });
+        if (mounted) {
+          setState(() {
+            _ticket = ticket;
+            _reporter = reporter;
+            _assignedTo = assignedTo;
+            _comments = comments;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _ticket = null;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('LOAD TICKET DETAILS ERROR: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   @override
@@ -51,18 +87,24 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     final text = _commentCtrl.text.trim();
     if (text.isEmpty) return;
     setState(() => _sending = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    await CommentService.addComment(
-      ticketId: widget.ticketId,
-      userId: SessionService.userId,
-      userName: SessionService.userName,
-      role: SessionService.userRole,
-      text: text,
-    );
-    _commentCtrl.clear();
-    _load();
-    setState(() => _sending = false);
-    if (mounted) AppUtils.showSnackBar(context, 'Komentar berhasil dikirim');
+    try {
+      await CommentService.addComment(
+        ticketId: widget.ticketId,
+        userId: SessionService.userId,
+        userName: SessionService.userName,
+        role: SessionService.userRole,
+        text: text,
+      );
+      _commentCtrl.clear();
+      await _load();
+      if (mounted) AppUtils.showSnackBar(context, 'Komentar berhasil dikirim');
+    } catch (e) {
+      if (mounted) AppUtils.showSnackBar(context, 'Gagal mengirim komentar.', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
+    }
   }
 
   Future<void> _acceptTicket() async {
@@ -70,13 +112,9 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
     try {
       await TicketService.acceptTicket(
-        ticketId: _ticket!['id'],
-        actorId: SessionService.userId,
-        actorName: SessionService.userName,
-        status: 'Assigned',
-        stage: 'Ticket diterima oleh Admin',
-        description: 'Admin telah menerima ticket dan siap melakukan penugasan.',
-        location: _ticket!['location'] ?? '-',
+        ticketId: _ticket!.id,
+        adminId: SessionService.userId,
+        adminName: SessionService.userName,
       );
 
       if (!mounted) return;
@@ -99,43 +137,70 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   // ── Assign laporan — HANYA admin ─────────────────────────────────────────────
   void _showAssignPicker() async {
     if (!SessionService.canAssignTickets) return; // guard
-    final helpdeskList = await TicketService.getHelpdeskList();
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Tugaskan ke Helpdesk',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          ...helpdeskList.map((h) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: UserAvatar(initials: h['avatar'], size: 36),
-            title: Text(h['name']),
-            subtitle: Text(h['department']),
-            trailing: _ticket?['assignedToId'] == h['id']
-                ? Icon(Icons.check_rounded, color: Theme.of(context).colorScheme.primary)
-                : null,
-            onTap: () {
-              Navigator.pop(ctx);
-              final ok = TicketService.assignTicketToStaff(
-                  widget.ticketId, h['id'], h['name']);
-              if (ok) {
-                _load();
-                AppUtils.showSnackBar(context, 'Laporan dikirimkan ke ${h['name']}');
-              }
-            },
-          )),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
+    try {
+      final helpdeskList = await TicketService.getHelpdeskList();
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Tugaskan ke Helpdesk',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            ...helpdeskList.map((h) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: UserAvatar(initials: h.avatar ?? 'HD', size: 36),
+              title: Text(h.name),
+              subtitle: Text(h.department ?? ''),
+              trailing: _ticket?.assignedToId == h.id
+                  ? Icon(Icons.check_rounded, color: Theme.of(context).colorScheme.primary)
+                  : null,
+              onTap: () async {
+                Navigator.pop(ctx);
+                try {
+                  await TicketService.assignTicketToStaff(
+                    ticketId: widget.ticketId,
+                    petugasId: h.id,
+                    petugasName: h.name,
+                  );
+                  _load();
+                  if (mounted) {
+                    AppUtils.showSnackBar(context, 'Laporan dikirimkan ke ${h.name}');
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    AppUtils.showSnackBar(context, 'Gagal menugaskan laporan.', isError: true);
+                  }
+                }
+              },
+            )),
+            const SizedBox(height: 8),
+          ]),
+        ),
+      );
+    } catch (e) {
+      AppUtils.showSnackBar(context, 'Gagal memuat daftar helpdesk.', isError: true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Detail Laporan'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     // Laporan null → user tidak berhak atau tidak ditemukan
     if (_ticket == null) {
       return Scaffold(
@@ -156,11 +221,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
     final theme    = Theme.of(context);
     final ticket   = _ticket!;
-    final comments = ticket['comments'] as List<dynamic>? ?? [];
+    final comments = _comments;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(ticket['id'],
+        title: Text(ticket.id,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -168,7 +233,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         ),
         actions: [
           if (SessionService.canAssignTickets &&
-            ticket['status'] == 'Open')
+            ticket.status == 'Open')
           TextButton.icon(
             onPressed: _acceptTicket,
             icon: const Icon(Icons.check_circle_outline),
@@ -176,7 +241,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           ),
 
         if (SessionService.canAssignTickets &&
-            ticket['status'] == 'Assigned')
+            ticket.status == 'Assigned')
           TextButton.icon(
             onPressed: _showAssignPicker,
             icon: const Icon(Icons.person_add_alt_1),
@@ -191,9 +256,9 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
             // Status + prioritas
             Row(children: [
-              StatusBadge(status: ticket['status']),
+              StatusBadge(status: ticket.status),
               const SizedBox(width: 8),
-              PriorityBadge(priority: ticket['priority']),
+              PriorityBadge(priority: ticket.priority),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -201,14 +266,14 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                   color: theme.colorScheme.primary.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(ticket['category'],
+                child: Text(ticket.category,
                     style: TextStyle(color: theme.colorScheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
               ),
             ]),
             const SizedBox(height: 16),
 
             // Judul
-            Text(ticket['title'],
+            Text(ticket.title,
                 style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, height: 1.3)),
             const SizedBox(height: 16),
 
@@ -216,22 +281,22 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             Card(child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(children: [
-                _InfoRow(icon: Icons.person_outline_rounded, label: 'Pelapor',    value: ticket['userName']),
+                _InfoRow(icon: Icons.person_outline_rounded, label: 'Pelapor',    value: _reporter?.name ?? 'Pengguna'),
                 const Divider(height: 20),
-                _InfoRow(icon: Icons.location_on_outlined,   label: 'Lokasi',     value: ticket['location'] ?? '-'),
+                _InfoRow(icon: Icons.location_on_outlined,   label: 'Lokasi',     value: ticket.location),
                 const Divider(height: 20),
                 _InfoRow(icon: Icons.schedule_rounded,       label: 'Dibuat',
-                    value: AppUtils.formatDateTime(DateTime.parse(ticket['createdAt']))),
+                    value: AppUtils.formatDateTime(ticket.createdAt)),
                 const Divider(height: 20),
                 _InfoRow(icon: Icons.update_rounded,         label: 'Diperbarui',
-                    value: AppUtils.formatDateTime(DateTime.parse(ticket['updated_at']))),
+                    value: ticket.updatedAt != null ? AppUtils.formatDateTime(ticket.updatedAt!) : '-'),
                 // Kolom assigned — hanya tampil jika ada & yang lihat adalah helpdesk/admin
                 if (SessionService.canManageTickets) ...[
                   const Divider(height: 20),
                   _InfoRow(
                     icon: Icons.support_agent_rounded,
                     label: 'Ditugaskan ke',
-                    value: ticket['assignedTo'] ?? 'Belum ditugaskan',
+                    value: _assignedTo?.name ?? 'Belum ditugaskan',
                   ),
                 ],
               ]),
@@ -251,38 +316,17 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 border: Border.all(color: theme.brightness == Brightness.dark
                     ? const Color(0xFF2A2A3E) : Colors.grey.shade100),
               ),
-              child: Text(ticket['description'],
+              child: Text(ticket.description,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                      height: 1.6, color: theme.colorScheme.onSurface.withOpacity(0.8))),
+                      height: 1.6, color: theme.colorScheme.onSurface.withOpacity(0.85))),
             ),
             const SizedBox(height: 16),
-
-            // Lampiran
-            if ((ticket['attachments'] as List).isNotEmpty) ...[
-              Text('Lampiran', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              ...((ticket['attachments'] as List).map((att) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2)),
-                ),
-                child: Row(children: [
-                  Icon(Icons.attach_file_rounded, size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(att.toString(), style: const TextStyle(fontSize: 13))),
-                ]),
-              ))),
-              const SizedBox(height: 16),
-            ],
 
             // Tracking timeline
             Text('Tracking Status',
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            _TrackingTimeline(status: ticket['status']),
+            _TrackingTimeline(status: ticket.status),
             const SizedBox(height: 20),
 
             // Komentar
@@ -309,7 +353,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                     style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.35), fontSize: 13)),
               ))
             else
-              ...comments.map((c) => _CommentBubble(comment: c as Map<String, dynamic>)),
+              ...comments.map((c) => _CommentBubble(comment: c)),
 
             const SizedBox(height: 20),
           ]),
@@ -386,14 +430,14 @@ class _InfoRow extends StatelessWidget {
 
 // ── Comment bubble ────────────────────────────────────────────────────────────
 class _CommentBubble extends StatelessWidget {
-  final Map<String, dynamic> comment;
+  final CommentModel comment;
   const _CommentBubble({required this.comment});
 
   @override
   Widget build(BuildContext context) {
     final theme      = Theme.of(context);
-    final isHelpdesk = comment['role'] == 'helpdesk' || comment['role'] == 'admin';
-    final initials   = (comment['userName'] as String)
+    final isHelpdesk = comment.role == 'helpdesk' || comment.role == 'admin';
+    final initials   = comment.userName
         .split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase();
     final bubbleColor = isHelpdesk ? AppTheme.processColor : theme.colorScheme.primary;
 
@@ -404,7 +448,7 @@ class _CommentBubble extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text(comment['userName'],
+            Text(comment.userName,
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             const SizedBox(width: 6),
             if (isHelpdesk)
@@ -414,11 +458,11 @@ class _CommentBubble extends StatelessWidget {
                   color: bubbleColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(comment['role'].toString().toUpperCase(),
+                child: Text(comment.role.toUpperCase(),
                     style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: bubbleColor)),
               ),
             const Spacer(),
-            Text(AppUtils.timeAgo(DateTime.parse(comment['createdAt'])),
+            Text(AppUtils.timeAgo(comment.createdAt),
                 style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.4))),
           ]),
           const SizedBox(height: 6),
@@ -438,7 +482,7 @@ class _CommentBubble extends StatelessWidget {
                   : theme.brightness == Brightness.dark
                       ? const Color(0xFF2A2A3E) : Colors.grey.shade100),
             ),
-            child: Text(comment['text'],
+            child: Text(comment.text,
                 style: TextStyle(fontSize: 13, height: 1.5,
                     color: theme.colorScheme.onSurface.withOpacity(0.85))),
           ),
@@ -457,9 +501,9 @@ class _TrackingTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme  = Theme.of(context);
     final stages = [
-      {'label': 'Dibuat',    'status': 'Pending',  'icon': Icons.add_circle_outline_rounded},
-      {'label': 'Diproses',  'status': 'Diproses', 'icon': Icons.build_circle_rounded},
-      {'label': 'Selesai',   'status': 'Selesai',  'icon': Icons.check_circle_rounded},
+      {'label': 'Dibuat',    'status': 'Open',  'icon': Icons.add_circle_outline_rounded},
+      {'label': 'Diproses',  'status': 'In Progress', 'icon': Icons.build_circle_rounded},
+      {'label': 'Selesai',   'status': 'Close',  'icon': Icons.check_circle_rounded},
     ];
 
     if (status == 'Dibatalkan') {
@@ -480,8 +524,8 @@ class _TrackingTimeline extends StatelessWidget {
     }
 
     int currentIdx = 0;
-    if (status == 'Diproses') currentIdx = 1;
-    if (status == 'Selesai')  currentIdx = 2;
+    if (status == 'Assigned' || status == 'In Progress') currentIdx = 1;
+    if (status == 'Close')  currentIdx = 2;
 
     return Row(
       children: List.generate(stages.length * 2 - 1, (i) {

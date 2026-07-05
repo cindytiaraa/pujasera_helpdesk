@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/ticket_service.dart';
+import '../models/ticket_model.dart';
 import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import 'ticket_detail_screen.dart';
@@ -20,7 +21,7 @@ class _TicketListScreenState extends State<TicketListScreen>
   final _searchCtrl = TextEditingController();
   String _query = '';
 
-  List<Map<String, dynamic>> _tickets = [];
+  List<TicketModel> _tickets = [];
   bool _loading = true;
 
   final _tabs = [
@@ -77,13 +78,13 @@ class _TicketListScreenState extends State<TicketListScreen>
   }
 
   // ── Filter pipeline ────────────────────────────────────────────────────────
-  List<Map<String, dynamic>> _filtered(String? status) {
+  List<TicketModel> _filtered(String? status) {
     return _tickets.where((t) {
-      final matchStatus = status == null || t['status'] == status;
+      final matchStatus = status == null || t.status == status;
       final matchSearch = _query.isEmpty ||
-          t['title'].toLowerCase().contains(_query.toLowerCase()) ||
-          t['id'].toLowerCase().contains(_query.toLowerCase()) ||
-          t['category'].toLowerCase().contains(_query.toLowerCase());
+          t.title.toLowerCase().contains(_query.toLowerCase()) ||
+          t.id.toLowerCase().contains(_query.toLowerCase()) ||
+          t.category.toLowerCase().contains(_query.toLowerCase());
       return matchStatus && matchSearch;
     }).toList();
   }
@@ -163,7 +164,7 @@ class _TicketListScreenState extends State<TicketListScreen>
 }
 
 class _TicketTab extends StatelessWidget {
-  final List<Map<String, dynamic>> tickets;
+  final List<TicketModel> tickets;
   final Future<void> Function() onRefresh;
 
   const _TicketTab({
@@ -190,9 +191,9 @@ class _TicketTab extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         itemCount: tickets.length,
         itemBuilder: (ctx, i) => TicketCard(
-          ticket: tickets[i],
+          ticket: tickets[i].toJson(),
           onTap: () => Navigator.push(ctx,
-              MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: tickets[i]['id']))),
+              MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: tickets[i].id))),
         ),
       ),
     );
