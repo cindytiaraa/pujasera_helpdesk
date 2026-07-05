@@ -80,17 +80,18 @@ class AuthService {
   // RESET PASSWORD
   // =========================================================
 
-  static Future<bool> resetPassword({
-    required String email,
+  static Future<bool> changePassword({
+    required String userId,
+    required String oldPassword,
     required String newPassword,
   }) async {
     final user = await SupabaseService.client
         .from('users')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
+        .select('password')
+        .eq('id', userId)
+        .single();
 
-    if (user == null) {
+    if (user['password'] != oldPassword) {
       return false;
     }
 
@@ -99,7 +100,7 @@ class AuthService {
         .update({
           'password': newPassword,
         })
-        .eq('email', email);
+        .eq('id', userId);
 
     return true;
   }

@@ -47,6 +47,7 @@ class TicketService {
         currentStage: 'Tiket berhasil dibuat',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        imageUrl: ticket.imageUrl,
       );
 
       await SupabaseService.client

@@ -23,18 +23,28 @@ class ProfileService {
   // UPDATE PROFILE
   // =========================================================
 
-  static Future<void> updateProfile({
+  static Future<UserModel?> updateProfile({
     required String userId,
     required String name,
-    required String email,
-    String? phone,
+    required String phone,
+    required String department,
   }) async {
-    await SupabaseService.client.from('users').update({
-      'name': name,
-      'email': email,
-      'phone': phone,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', userId);
+    await SupabaseService.client
+        .from('users')
+        .update({
+          'name': name,
+          'phone': phone,
+          'department': department,
+        })
+        .eq('id', userId);
+
+    final data = await SupabaseService.client
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .single();
+
+    return UserModel.fromJson(data);
   }
 
   // =========================================================
@@ -50,4 +60,5 @@ class ProfileService {
 
     return result.map(UserModel.fromJson).toList();
   }
+
 }

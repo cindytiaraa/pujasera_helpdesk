@@ -12,6 +12,7 @@ class TicketModel {
   final DateTime? updatedAt;
   final String location;
   final String currentStage;
+  final String? imageUrl;
 
   const TicketModel({
     required this.id,
@@ -27,6 +28,7 @@ class TicketModel {
     this.updatedAt,
     required this.location,
     required this.currentStage,
+    this.imageUrl,
   });
 
   /// JSON -> Object
@@ -47,6 +49,7 @@ class TicketModel {
           : null,
       location: json['location'] ?? '',
       currentStage: json['current_stage'] ?? '',
+      imageUrl: json['image_url'],
     );
   }
 
@@ -66,6 +69,7 @@ class TicketModel {
       'updated_at': updatedAt?.toIso8601String(),
       'location': location,
       'current_stage': currentStage,
+      'image_url': imageUrl,
     };
   }
 
@@ -84,6 +88,7 @@ class TicketModel {
     DateTime? updatedAt,
     String? location,
     String? currentStage,
+    String? imageUrl,
   }) {
     return TicketModel(
       id: id ?? this.id,
@@ -99,6 +104,7 @@ class TicketModel {
       updatedAt: updatedAt ?? this.updatedAt,
       location: location ?? this.location,
       currentStage: currentStage ?? this.currentStage,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
@@ -129,7 +135,8 @@ class TicketModel {
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.location == location &&
-        other.currentStage == currentStage;
+        other.currentStage == currentStage &&
+        other.imageUrl == imageUrl;
   }
 
   @override
@@ -148,6 +155,7 @@ class TicketModel {
       updatedAt,
       location,
       currentStage,
+      imageUrl,
     );
   }
 }

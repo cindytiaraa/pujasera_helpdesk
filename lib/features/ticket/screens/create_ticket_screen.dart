@@ -1,8 +1,11 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../services/ticket_service.dart';
 import '../models/ticket_model.dart';
 
@@ -25,7 +28,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   String  _category   = AppConstants.ticketCategories.first;
   String  _priority   = AppConstants.priorityMedium;
   bool    _submitting = false;
-  String? _imageName;
+  XFile? _selectedImage;
 
   @override
   void dispose() {
@@ -39,6 +42,29 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
 
+    String? imageUrl;
+
+    if (_selectedImage != null) {
+      imageUrl = await StorageService.uploadTicketImage(
+        file: File(_selectedImage!.path),
+        fileName:
+            'tickets/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+
+      if (imageUrl == null) {
+        if (mounted) {
+          setState(() => _submitting = false);
+
+          AppUtils.showSnackBar(
+            context,
+            'Upload gambar gagal.',
+            isError: true,
+          );
+        }
+        return;
+      }
+    }
+    
     try {
       final ticketInput = TicketModel(
         id: '', // Service will override this
@@ -53,6 +79,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
         updatedAt: DateTime.now(), // Service will override this
         location: _locationCtrl.text.trim(),
         currentStage: 'Tiket berhasil dibuat', // Service will override this
+        imageUrl: imageUrl,
       );
 
       final newTicket = await TicketService.createTicket(ticketInput);
@@ -74,33 +101,49 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     }
   }
 
-  void _pickImage() {
+  Future<void> _pickImage() async {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Pilih Sumber Foto',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          _ImageSourceTile(
-            icon: Icons.camera_alt_rounded, label: 'Kamera', subtitle: 'Ambil foto langsung',
-            onTap: () {
-              Navigator.pop(ctx);
-              setState(() => _imageName = 'foto_kamera_${DateTime.now().millisecondsSinceEpoch}.jpg');
-            },
-          ),
-          const SizedBox(height: 10),
-          _ImageSourceTile(
-            icon: Icons.photo_library_rounded, label: 'Galeri', subtitle: 'Pilih dari galeri',
-            onTap: () {
-              Navigator.pop(ctx);
-              setState(() => _imageName = 'foto_galeri_${DateTime.now().millisecondsSinceEpoch}.jpg');
-            },
-          ),
-          const SizedBox(height: 16),
-        ]),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Kamera'),
+              onTap: () async {
+                Navigator.pop(ctx);
+
+                final image =
+                    await StorageService.pickFromCamera();
+
+                if (image == null) return;
+
+                setState(() {
+                  _selectedImage = image;
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Galeri'),
+              onTap: () async {
+                Navigator.pop(ctx);
+
+                final image =
+                    await StorageService.pickFromGallery();
+
+                if (image == null) return;
+
+                setState(() {
+                  _selectedImage = image;
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -259,22 +302,46 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: _imageName != null ? theme.colorScheme.primary.withOpacity(0.06) : theme.colorScheme.surface,
+                  color: _selectedImage != null ? theme.colorScheme.primary.withOpacity(0.06) : theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _imageName != null
+                  border: Border.all(color: _selectedImage != null
                       ? theme.colorScheme.primary.withOpacity(0.4)
                       : theme.brightness == Brightness.dark ? const Color(0xFF3A3A4E) : Colors.grey.shade200),
                 ),
-                child: _imageName != null
-                    ? Row(children: [
-                        Icon(Icons.image_rounded, color: theme.colorScheme.primary, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(_imageName!, style: const TextStyle(fontSize: 13))),
-                        GestureDetector(
-                          onTap: () => setState(() => _imageName = null),
-                          child: Icon(Icons.cancel_rounded, color: Colors.red.shade400, size: 20),
-                        ),
-                      ])
+                child: _selectedImage != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        children: [
+                          Image.file(
+                            File(_selectedImage!.path),
+                            height: 180,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedImage = null;
+                                });
+                              },
+                              child: const CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Colors.red,
+                                child: Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                     : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Icon(Icons.add_photo_alternate_outlined,
                             color: theme.colorScheme.onSurface.withOpacity(0.3), size: 22),
