@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../../core/services/session_service.dart';
-import '../services/profile_service.dart';
-import '../../auth/models/user_model.dart';
+// removed unused imports
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../../main.dart';
 import '../../auth/screens/login_screen.dart';
+import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -71,8 +72,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_rounded, size: 20),
-            onPressed: () =>
-                AppUtils.showSnackBar(context, 'Fitur edit profil segera hadir!'),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const EditProfileScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -244,8 +251,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _SettingTile(
                           icon: Icons.lock_outline_rounded,
                           label: 'Ubah Password',
-                          onTap: () => AppUtils.showSnackBar(
-                              context, 'Fitur ubah password segera hadir!'),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ChangePasswordScreen(),
+                            ),
+                          ),
                         ),
                         Divider(height: 1, color: theme.dividerColor),
                         _SettingTile(

@@ -385,37 +385,4 @@ class _Label extends StatelessWidget {
   ]);
 }
 
-class _ImageSourceTile extends StatelessWidget {
-  final IconData icon;
-  final String label, subtitle;
-  final VoidCallback onTap;
-  const _ImageSourceTile({required this.icon, required this.label, required this.subtitle, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.brightness == Brightness.dark
-              ? const Color(0xFF3A3A4E) : Colors.grey.shade100),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(children: [
-          Container(padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, color: theme.colorScheme.primary, size: 22)),
-          const SizedBox(width: 14),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            Text(subtitle, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.4))),
-          ]),
-        ]),
-      ),
-    );
-  }
-}
+// Removed unused _ImageSourceTile widget (not referenced anywhere)

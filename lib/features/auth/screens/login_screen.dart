@@ -5,6 +5,7 @@ import '../models/user_model.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import 'register_screen.dart';
+import 'reset_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -209,6 +210,19 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       ),
                     ),
                     const SizedBox(height: 32),
+
+                    // ── Lupa password ─────────────────────────────────────
+                    TextButton(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ResetPasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text("Lupa Password?"),
+                    ),
 
                     // ── Demo accounts ─────────────────────────────────────
                     // Container(

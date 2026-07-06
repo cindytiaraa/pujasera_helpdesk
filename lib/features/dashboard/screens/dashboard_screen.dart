@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/app_utils.dart';
-
 import '../../../core/services/session_service.dart';
 import '../services/dashboard_service.dart';
 import '../../notification/services/notification_service.dart';
 import '../../ticket/models/ticket_model.dart';
-
-import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../ticket/screens/ticket_list_screen.dart';
 import '../../ticket/screens/create_ticket_screen.dart';

@@ -5,7 +5,6 @@ import '../../../core/utils/app_utils.dart';
 import '../services/ticket_service.dart';
 import '../services/comment_service.dart';
 import '../services/history_service.dart';
-import '../../notification/services/notification_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../models/ticket_model.dart';

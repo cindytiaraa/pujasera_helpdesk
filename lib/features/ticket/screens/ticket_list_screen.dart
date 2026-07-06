@@ -168,7 +168,6 @@ class _TicketTab extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   const _TicketTab({
-    super.key, 
     required this.tickets, 
     required this.onRefresh,
   });

@@ -77,7 +77,7 @@ class AuthService {
   }
 
   // =========================================================
-  // RESET PASSWORD
+  // CHANGE PASSWORD
   // =========================================================
 
   static Future<bool> changePassword({
@@ -85,23 +85,62 @@ class AuthService {
     required String oldPassword,
     required String newPassword,
   }) async {
+    print("USER ID : $userId");
+
     final user = await SupabaseService.client
         .from('users')
         .select('password')
         .eq('id', userId)
         .single();
 
+    print("PASSWORD DATABASE : ${user['password']}");
+    print("PASSWORD INPUT    : $oldPassword");
+
     if (user['password'] != oldPassword) {
+      print("❌ Password lama salah");
       return false;
     }
 
-    await SupabaseService.client
+    final result = await SupabaseService.client
         .from('users')
         .update({
           'password': newPassword,
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
+
+    print("UPDATE RESULT : $result");
 
     return true;
+  }
+
+  // =========================================================
+  // RESET PASSWORD
+  // =========================================================
+
+  static Future<bool> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      final user = await SupabaseService.client
+          .from('users')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+
+      if (user == null) return false;
+
+      await SupabaseService.client
+          .from('users')
+          .update({
+            'password': newPassword,
+          })
+          .eq('email', email);
+
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

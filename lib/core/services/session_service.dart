@@ -20,6 +20,7 @@ class SessionService {
   static String get userRole => _currentUser?.role ?? 'user';
   static String get userAvatar => _currentUser?.avatar ?? 'US';
   static String get userDept => _currentUser?.department ?? '';
+  static String get userCode => _currentUser?.code ?? '';
 
   // ─────────────────────────────────────────────────────────────
   // ROLE HELPERS
@@ -62,6 +63,9 @@ class SessionService {
   static void updateProfile(UserModel updatedUser) {
     _currentUser = updatedUser;
   }
+
+  /// Backwards-compatible alias used in some screens
+  static void saveUser(UserModel user) => updateProfile(user);
 
   // ─────────────────────────────────────────────────────────────
   // ROLE LABEL
