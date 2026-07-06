@@ -79,7 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: pages[_currentIndex],
 
       floatingActionButton: showFab
-          ? FloatingActionButton(
+          ? _AnimatedFab(
               onPressed: () async {
                 await Navigator.push(
                   context,
@@ -87,7 +87,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
                 _refresh();
               },
-              child: const Icon(Icons.add_rounded),
             )
           : null,
 
@@ -127,6 +126,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 current: _currentIndex,
                 onTap: _navigate),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Animated FAB — muncul dengan sedikit scale + shadow lembut ─────────────────
+class _AnimatedFab extends StatefulWidget {
+  final Future<void> Function() onPressed;
+  const _AnimatedFab({required this.onPressed});
+
+  @override
+  State<_AnimatedFab> createState() => _AnimatedFabState();
+}
+
+class _AnimatedFabState extends State<_AnimatedFab>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ScaleTransition(
+      scale: _scale,
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withOpacity(0.35),
+              blurRadius: 16,
+              spreadRadius: 1,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: widget.onPressed,
+          elevation: 0,
+          child: const Icon(Icons.add_rounded),
         ),
       ),
     );
@@ -294,32 +351,63 @@ class _DashboardHomeState extends State<_DashboardHome> {
       backgroundColor: theme.colorScheme.primary,
       toolbarHeight: 70,
       title: Row(children: [
-        Image.asset(
-          'assets/images/logo.png',
-          height: 32,
+        // Logo Pujasera — dibungkus lingkaran putih
+        Container(
+          width: 34,
+          height: 34,
+          padding: const EdgeInsets.all(5),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.support_agent_rounded,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
         ),
-        const SizedBox(width: 8),
-        UserAvatar(initials: SessionService.userAvatar, size: 36, color: Colors.white),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Selamat datang,',
-                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 11)),
-            Text(SessionService.userName,
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+            Text('Smart Pujasera',
+                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 10,
+                    fontWeight: FontWeight.w500, letterSpacing: 0.2)),
+            const SizedBox(height: 1),
+            Text('Halo, ${SessionService.userName.split(' ').first}',
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(SessionService.roleLabel.toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontSize: 8,
+                      fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            ),
           ],
         )),
-        const SizedBox(width: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(20),
+        const SizedBox(width: 8),
+        // Avatar — klik langsung membuka Profile Screen
+        GestureDetector(
+          onTap: () => widget.onNavigate(3),
+          child: UserAvatar(
+            initials: SessionService.userName.isNotEmpty
+                ? SessionService.userName.trim()[0].toUpperCase()
+                : 'U',
+            size: 38,
+            color: Colors.white,
           ),
-          child: Text(SessionService.roleLabel.toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontSize: 9,
-                  fontWeight: FontWeight.w700, letterSpacing: 0.5)),
         ),
       ]),
     ),
@@ -339,9 +427,24 @@ class _DashboardHomeState extends State<_DashboardHome> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/images/logo.png',
-                  height: 60,
+                Container(
+                  width: 64,
+                  height: 64,
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.support_agent_rounded,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 const Text(

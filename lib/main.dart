@@ -45,7 +45,8 @@ class _SmartPujaseraAppState extends State<SmartPujaseraApp> {
   ThemeMode _themeMode = ThemeMode.system;
 
   void toggleTheme() {
-    setState(() {
+    setState(
+            () {
       _themeMode =
       _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     });
